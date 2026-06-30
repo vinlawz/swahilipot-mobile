@@ -11,6 +11,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import PlayerProvider from '@/components/AudioPlayer';
 import FloatingPlayer from '@/components/FloatingPlayer';
 import { useColorScheme } from '@/components/useColorScheme';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import React from 'react';
 
 export {
@@ -19,7 +21,6 @@ export {
 } from 'expo-router';
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
   initialRouteName: '(tabs)',
 };
 
@@ -32,7 +33,6 @@ export default function RootLayout() {
     ...FontAwesome.font,
   });
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
     if (error) throw error;
   }, [error]);
@@ -47,22 +47,47 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
+  return (
+    <AuthProvider>
+      <RootLayoutNav />
+    </AuthProvider>
+  );
 }
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+  const { isSignedIn, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <SafeAreaProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <LoadingSpinner text="Loading..." />
+          </View>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <SafeAreaProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <PlayerProvider>
           <View style={{ flex: 1 }}>
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-            </Stack>
-            <FloatingPlayer />
+            {isSignedIn ? (
+              <>
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+                </Stack>
+                <FloatingPlayer />
+              </>
+            ) : (
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              </Stack>
+            )}
           </View>
         </PlayerProvider>
       </ThemeProvider>

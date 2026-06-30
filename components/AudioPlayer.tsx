@@ -63,7 +63,12 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
   const audioConfiguredRef = useRef(false);
   const [currentTrack, setCurrentTrack] = useState<StreamTrack | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const player = useExpoAudioPlayer(null, { updateInterval: 1000, keepAudioSessionActive: true });
+
+  // Initialize player with the FM stream URL
+  const player = useExpoAudioPlayer(
+    { uri: FM_STREAM.url },
+    { updateInterval: 1000, keepAudioSessionActive: true }
+  );
   const status = useAudioPlayerStatus(player);
 
   const ensureAudioMode = useCallback(async () => {
@@ -80,6 +85,7 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
         shouldRouteThroughEarpiece: false,
       });
       audioConfiguredRef.current = true;
+      console.log('[AudioPlayer] Audio mode configured');
     } catch (error) {
       console.warn('[AudioPlayer] Unable to configure audio mode', error);
     }
@@ -92,6 +98,7 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (status?.isLoaded) {
       setIsLoading(false);
+      console.log('[AudioPlayer] Stream loaded and ready');
     }
   }, [status?.isLoaded]);
 
@@ -100,44 +107,79 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
       const targetTrack = track ?? currentTrack ?? FM_STREAM;
       setCurrentTrack(targetTrack);
       setIsLoading(true);
+
       try {
+        console.log('[AudioPlayer] Starting playback:', targetTrack.title);
         await ensureAudioMode();
-        const needsSource = currentTrack?.id !== targetTrack.id || !status?.isLoaded;
-        if (needsSource) {
-          player.replace({ uri: targetTrack.url });
+
+        // Always ensure the source is set correctly
+        if (targetTrack.id !== currentTrack?.id) {
+          console.log('[AudioPlayer] Changing stream source');
+          try {
+            // Replace the source and reload
+            await player.replace({ uri: targetTrack.url });
+            console.log('[AudioPlayer] Stream source updated');
+          } catch (replaceError) {
+            console.error('[AudioPlayer] Failed to replace stream:', replaceError);
+            throw new Error(`Stream replace failed: ${replaceError}`);
+          }
         }
+
+        // Check if already playing
         if (!status?.playing) {
-          player.play();
+          console.log('[AudioPlayer] Starting playback...');
+          try {
+            await player.play();
+            console.log('[AudioPlayer] ✅ Playback started successfully');
+          } catch (playError) {
+            console.error('[AudioPlayer] Play failed:', playError);
+            throw new Error(`Play failed: ${playError}`);
+          }
+        } else {
+          console.log('[AudioPlayer] Already playing');
         }
       } catch (error) {
-        console.warn('Failed to start Swahilipot FM stream', error);
+        console.error('[AudioPlayer] ❌ Playback error:', error);
+        setIsLoading(false);
+        setCurrentTrack(null);
       }
     },
-    [currentTrack, ensureAudioMode, player, status?.isLoaded, status?.playing],
+    [currentTrack, ensureAudioMode, player, status?.playing],
   );
 
   const pause = useCallback(async () => {
-    player.pause();
+    try {
+      console.log('[AudioPlayer] Pausing...');
+      await player.pause();
+      console.log('[AudioPlayer] ✅ Paused');
+    } catch (error) {
+      console.error('[AudioPlayer] Pause error:', error);
+    }
   }, [player]);
 
   const stop = useCallback(async () => {
-    player.pause();
     try {
+      console.log('[AudioPlayer] Stopping...');
+      await player.pause();
       await player.seekTo(0);
+      setCurrentTrack(null);
+      setIsLoading(false);
+      console.log('[AudioPlayer] ✅ Stopped');
     } catch (error) {
-      console.warn('Unable to reset stream progress', error);
+      console.warn('[AudioPlayer] Stop error:', error);
     }
-    player.replace(null);
-    setCurrentTrack(null);
-    setIsLoading(false);
   }, [player]);
 
   const togglePlayback = useCallback(
     async (track?: StreamTrack) => {
-      if (status?.playing) {
-        await pause();
-      } else {
-        await play(track);
+      try {
+        if (status?.playing) {
+          await pause();
+        } else {
+          await play(track);
+        }
+      } catch (error) {
+        console.error('[AudioPlayer] Toggle error:', error);
       }
     },
     [pause, play, status?.playing],

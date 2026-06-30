@@ -2,9 +2,13 @@ import { Link } from 'expo-router';
 import React, { useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Image } from 'expo-image';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { MaterialIcons } from '@expo/vector-icons';
 
-import { Text as ThemedText, View as ThemedView } from '@/components/Themed';
+import { Text, Heading, Card } from '@/components/ui';
+import { Colors } from '@/constants/Theme';
+import { Spacing } from '@/constants/Spacing';
+import { useColorScheme } from '@/components/useColorScheme';
+import { View as ThemedView } from '@/components/Themed';
 
 const TABS = [
   { id: 'fm', title: 'Swahilipot FM', summary: 'Listen to shows and live streams.', href: '/fm' },
@@ -19,11 +23,10 @@ const TABS = [
   { id: 'profile', title: 'Profile', summary: 'Manage your account and preferences.', href: '/profile' },
 ] as const;
 
-const H_PADDING = 16;
-const GAP = 12;
-
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? 'light'];
 
   const columns = useMemo(() => {
     if (width >= 1200) return 4;
@@ -34,8 +37,8 @@ export default function HomeScreen() {
   }, [width]);
 
   const cardWidth = useMemo(() => {
-    const totalGaps = GAP * (columns - 1);
-    return (width - H_PADDING * 2 - totalGaps) / columns;
+    const totalGaps = Spacing.gapLarge * (columns - 1);
+    return (width - Spacing.screenPadding * 2 - totalGaps) / columns;
   }, [columns, width]);
 
   return (
@@ -48,51 +51,55 @@ export default function HomeScreen() {
               <Image source={require('@/assets/images/sph-logo.png')} style={styles.logo} />
               <Link href="/profile" asChild>
                 <Pressable hitSlop={8}>
-                  <FontAwesome name="user-circle" size={28} />
+                  <MaterialIcons name="account-circle" size={32} color={theme.secondary} />
                 </Pressable>
               </Link>
             </View>
-            <ThemedText style={styles.overline}>Swahilipot Hb Foundation App</ThemedText>
-            <ThemedText style={styles.title}>Choose where to go</ThemedText>
-            <ThemedText style={styles.subtitle}>
-              Pick a module to jump into. You can always return here from the Home tab.
-            </ThemedText>
-            <View style={styles.infoCard}>
-              <ThemedText style={styles.infoTitle}>Key information</ThemedText>
+
+            <Text variant="labelSmall" color="secondary" style={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+              Swahilipot Hub
+            </Text>
+            <Heading level={1}>Choose your path</Heading>
+            <Text variant="body" color="foregroundSecondary">
+              Explore Swahilipot FM, Foundation programs, events, and community.
+            </Text>
+
+            <Card padding={Spacing.lg} gap={Spacing.md} style={{ marginTop: Spacing.lg }}>
+              <Heading level={4}>About Swahilipot</Heading>
               <View style={styles.infoRow}>
-                <ThemedText style={styles.infoLabel}>Website</ThemedText>
-                <ThemedText style={styles.infoValue}>https://swahilipot.org</ThemedText>
+                <Text variant="bodySmall" weight="600">Website</Text>
+                <Text variant="bodySmall" color="secondary">swahilipot.org</Text>
               </View>
               <View style={styles.infoRow}>
-                <ThemedText style={styles.infoLabel}>Contact email</ThemedText>
-                <ThemedText style={styles.infoValue}>info@swahilipot.org</ThemedText>
+                <Text variant="bodySmall" weight="600">Location</Text>
+                <Text variant="bodySmall" color="secondary">Mombasa, Kenya</Text>
               </View>
               <View style={styles.infoRow}>
-                <ThemedText style={styles.infoLabel}>Customer care</ThemedText>
-                <ThemedText style={styles.infoValue}>+254 700 000 000</ThemedText>
+                <Text variant="bodySmall" weight="600">Contact</Text>
+                <Text variant="bodySmall" color="secondary">info@swahilipot.org</Text>
               </View>
-              <View style={styles.infoRow}>
-                <ThemedText style={styles.infoLabel}>Location</ThemedText>
-                <ThemedText style={styles.infoValue}>Mombasa, Kenya</ThemedText>
-              </View>
-            </View>
+            </Card>
           </View>
         }
         data={TABS}
         keyExtractor={(item) => item.id}
         numColumns={columns}
-        columnWrapperStyle={columns > 1 ? { columnGap: GAP } : undefined}
+        columnWrapperStyle={columns > 1 ? { columnGap: Spacing.gapLarge } : undefined}
         renderItem={({ item }) => (
           <View style={[styles.item, { width: cardWidth }]}>
             <Link href={item.href} asChild>
-              <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
-                <ThemedText style={styles.cardTitle}>{item.title}</ThemedText>
-                <ThemedText style={styles.cardBody}>{item.summary}</ThemedText>
+              <Pressable asChild>
+                <Card shadow="md" gap={Spacing.sm} onPress={() => {}}>
+                  <Heading level={4}>{item.title}</Heading>
+                  <Text variant="bodySmall" color="foregroundSecondary">
+                    {item.summary}
+                  </Text>
+                </Card>
               </Pressable>
             </Link>
           </View>
         )}
-        ItemSeparatorComponent={() => <View style={{ height: GAP }} />}
+        ItemSeparatorComponent={() => <View style={{ height: Spacing.gapLarge }} />}
         showsVerticalScrollIndicator={false}
       />
     </ThemedView>
@@ -104,82 +111,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
-    paddingHorizontal: H_PADDING,
-    paddingVertical: 16,
-    rowGap: GAP,
+    paddingHorizontal: Spacing.screenPadding,
+    paddingVertical: Spacing.lg,
+    rowGap: Spacing.gapLarge,
   },
   header: {
-    gap: 8,
-    marginBottom: 8,
+    gap: Spacing.lg,
+    marginBottom: Spacing.lg,
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: Spacing.md,
   },
   logo: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-  },
-  infoCard: {
-    marginTop: 8,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    gap: 8,
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    width: 44,
+    height: 44,
+    borderRadius: Spacing.radius.md,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
-  },
-  infoLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  infoValue: {
-    fontSize: 14,
-    flexShrink: 1,
-    textAlign: 'right',
-  },
-  overline: {
-    fontSize: 12,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  subtitle: {
-    fontSize: 16,
-    lineHeight: 22,
+    alignItems: 'center',
+    gap: Spacing.md,
   },
   item: {
     flexGrow: 1,
-  },
-  card: {
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
-    gap: 8,
-  },
-  cardPressed: {
-    opacity: 0.85,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  cardBody: {
-    fontSize: 14,
-    lineHeight: 20,
   },
 });
