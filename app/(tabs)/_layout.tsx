@@ -23,8 +23,15 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Swahilipot Hb Foundation App',
+          title: 'Home',
           tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="messages"
+        options={{
+          title: 'Messages',
+          tabBarIcon: ({ color }) => <TabBarIcon name="comments" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -32,20 +39,6 @@ export default function TabLayout() {
         options={{
           title: 'FM',
           tabBarIcon: ({ color }) => <TabBarIcon name="podcast" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="foundation"
-        options={{
-          title: 'Foundation',
-          tabBarIcon: ({ color }) => <TabBarIcon name="building" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="socials"
-        options={{
-          title: 'Socials',
-          tabBarIcon: ({ color }) => <TabBarIcon name="users" color={color} />,
         }}
       />
       <Tabs.Screen

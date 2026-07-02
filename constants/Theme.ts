@@ -60,6 +60,14 @@ export const SemanticColors = {
     // Status badges
     statusLive: '#dc2626', // Red for "live"
     statusLiveBg: '#fee2e2',
+
+    // 10-year anniversary colors
+    anniversary: '#1E5FD8', // Primary anniversary blue
+    anniversaryOrange: '#FF8C42',
+    anniversaryPurple: '#6B3FA0',
+    anniversaryCyan: '#4DB8E8',
+    anniversaryPeach: '#F5D5B8',
+    anniversaryLight: '#E6F0FF',
   },
 
   dark: {
@@ -119,6 +127,14 @@ export const SemanticColors = {
     // Status badges
     statusLive: '#fca5a5', // Lighter red
     statusLiveBg: '#7f1d1d', // Dark red bg
+
+    // 10-year anniversary colors
+    anniversary: '#3B8FED', // Lighter anniversary blue for dark mode
+    anniversaryOrange: '#FFB366',
+    anniversaryPurple: '#9B5FD1',
+    anniversaryCyan: '#7DD3F0',
+    anniversaryPeach: '#FFD9B8',
+    anniversaryLight: '#1A3D66',
   },
 };
 

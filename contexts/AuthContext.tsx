@@ -1,12 +1,16 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export interface User {
   id: string;
   email: string;
-  name: string;
-  avatar?: string;
-  membership?: string;
-  createdAt?: string;
+  full_name?: string;
+  department?: string;
+  role: 'admin' | 'manager' | 'staff' | 'intern';
+  avatar_url?: string;
+  phone?: string;
+  skills?: string[];
+  created_at?: string;
 }
 
 export interface AuthContextType {
@@ -23,12 +27,6 @@ export interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// In-memory session storage
-let sessionStorage = {
-  user: null as User | null,
-  token: null as string | null,
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,12 +39,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[AuthContext] Initializing...');
         setIsLoading(true);
 
-        // Try to restore from session storage
-        if (sessionStorage.user && sessionStorage.token) {
-          console.log('[AuthContext] Restoring session for:', sessionStorage.user.email);
-          setUser(sessionStorage.user);
-        } else {
-          console.log('[AuthContext] No existing session');
+        // Get current session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await fetchUserProfile(session.user.id);
         }
       } catch (err) {
         console.error('[AuthContext] Init error:', err);
@@ -57,7 +53,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     initAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (session?.user) {
+          await fetchUserProfile(session.user.id);
+        } else {
+          setUser(null);
+        }
+      }
+    );
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+
+      const { data, error: err } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (err && err.code === 'PGRST116') {
+        // User profile doesn't exist, create it
+        console.log('[AuthContext] Creating user profile...');
+        const newProfile = {
+          id: userId,
+          email: authUser?.email || '',
+          full_name: authUser?.email?.split('@')[0] || 'Staff',
+          role: 'staff',
+        };
+
+        const { data: created, error: createErr } = await supabase
+          .from('users')
+          .insert([newProfile])
+          .select()
+          .single();
+
+        if (createErr) throw createErr;
+        if (created) setUser(created);
+      } else if (err) {
+        throw err;
+      } else if (data) {
+        setUser(data);
+      }
+    } catch (err) {
+      console.error('[AuthContext] Error fetching/creating profile:', err);
+    }
+  };
 
   // Clear error after 5 seconds
   useEffect(() => {
@@ -85,29 +134,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error('Password must be at least 6 characters');
         }
 
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        // Check domain restriction
+        if (!email.endsWith('@swahilipot.co.ke')) {
+          throw new Error('You must use a @swahilipot.co.ke email address');
+        }
 
-        // Create user
-        const newUser: User = {
-          id: 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+        // Sign up with Supabase
+        const { data: authData, error: authError } = await supabase.auth.signUp({
           email: email.trim(),
-          name: name.trim(),
-          membership: 'Community Member',
-          createdAt: new Date().toISOString(),
+          password,
+        });
+
+        if (authError) throw authError;
+        if (!authData.user) throw new Error('Sign up failed');
+
+        // Create user profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('users')
+          .insert([
+            {
+              id: authData.user.id,
+              email: email.trim(),
+              full_name: name.trim(),
+              role: 'staff',
+            },
+          ])
+          .select()
+          .single();
+
+        if (profileError) throw profileError;
+
+        const newUser: User = profileData || {
+          id: authData.user.id,
+          email: email.trim(),
+          full_name: name.trim(),
+          role: 'staff',
         };
 
-        // TODO: Replace with real Supabase call
-        // const { data: authData, error: authError } = await supabase.auth.signUp({
-        //   email,
-        //   password,
-        // });
-
-        // Save to session
-        sessionStorage.user = newUser;
-        sessionStorage.token = 'token_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-
-        // Update state
         setUser(newUser);
         setIsLoading(false);
 
@@ -136,29 +199,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error('Email and password are required');
         }
 
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        // Check domain restriction
+        if (!email.endsWith('@swahilipot.co.ke')) {
+          throw new Error('You must use a @swahilipot.co.ke email address');
+        }
 
-        // TODO: Replace with real Supabase call
-        // const { data, error: authError } = await supabase.auth.signInWithPassword({
-        //   email,
-        //   password,
-        // });
-
-        // For mock: create/find user
-        const signinUser: User = {
-          id: 'user_' + email.replace(/[@.]/g, '_'),
+        // Sign in with Supabase
+        const { data, error: authError } = await supabase.auth.signInWithPassword({
           email: email.trim(),
-          name: email.split('@')[0],
-          membership: 'Community Member',
-          createdAt: new Date().toISOString(),
+          password,
+        });
+
+        if (authError) throw authError;
+        if (!data.user) throw new Error('Sign in failed');
+
+        // Fetch user profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError) throw profileError;
+
+        const signinUser: User = profileData || {
+          id: data.user.id,
+          email: email.trim(),
+          role: 'staff',
         };
 
-        // Save to session
-        sessionStorage.user = signinUser;
-        sessionStorage.token = 'token_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-
-        // Update state
         setUser(signinUser);
         setIsLoading(false);
 
@@ -181,15 +250,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null);
       setIsLoading(true);
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) throw signOutError;
 
-      // TODO: Call Supabase to revoke token
-      // await supabase.auth.signOut();
-
-      // Clear session
-      sessionStorage.user = null;
-      sessionStorage.token = null;
       setUser(null);
       setIsLoading(false);
 
@@ -213,15 +276,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error('No user logged in');
         }
 
-        // TODO: Call Supabase to update profile
-        // await supabase.from('users').update(data).eq('id', user.id);
+        const { data: updated, error: updateError } = await supabase
+          .from('users')
+          .update(data)
+          .eq('id', user.id)
+          .select()
+          .single();
 
-        const updated: User = { ...user, ...data };
-        sessionStorage.user = updated;
-        setUser(updated);
+        if (updateError) throw updateError;
+
+        const updatedUser: User = updated || { ...user, ...data };
+        setUser(updatedUser);
 
         console.log('[AuthContext] updateProfile successful');
-        return updated;
+        return updatedUser;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Update failed';
         console.error('[AuthContext] updateProfile error:', message);
